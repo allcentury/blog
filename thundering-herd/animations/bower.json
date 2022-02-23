@@ -1,0 +1,21 @@
+{
+  "name": "animations",
+  "authors": [
+    "Anthony Ross <antross@paypal.com>"
+  ],
+  "description": "",
+  "main": "",
+  "license": "MIT",
+  "homepage": "",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "pathfinding": "^0.4.18"
+  }
+}
