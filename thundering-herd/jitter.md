@@ -53,7 +53,7 @@ It wasn't until we pieced together the timeline that we realized the culprit.
 
 Enter the [Thundering herd problem](https://en.wikipedia.org/wiki/Thundering_herd_problem).  In the thundering herd problem, a great many processes (jobs in our case) get queued in parallel, they hit a common service and trample it down.  Then, our same jobs would retry on a *static* interval and trample it again. The cycle kept repeating until we exhausted our retries and eventually DLQ'd.
 
-![thundering-herd](./animations/thunder-herd.gif)
+![thundering-herd](./imgs/thunder-herd-v2.gif)
 
 
 While we had autoscale policies in place for this, our timing was terrible.  We would hammer the processor service which would eventually crash it.  Then our jobs would go back into the queue to retry N times.  The processor service would scale out but some of our retry intervals were so long, the processor service would inevitably scale back in before the jobs retried :facepalm:.  Scale in and out policies are a tradeoff of time and money, the faster it can scale in/out the more cost effective but the tradeoff is that we can be underprovisioned for a period of time.  This was unfortunate and we could feel the architectural coupling of this entire flow.
@@ -67,6 +67,6 @@ I'm only going to talk about how we stopped the bleeding in this post and save t
 
 While we were using [exponential backoff](https://en.wikipedia.org/wiki/Exponential_backoff), it doesn't exactly stop the Thundering Herd Problem.  What we need is to introduce randomness into the retry interval so the future jobs are staggered.  ActiveJob did not have randomness or a jitter argument at the time and so I suggested it via a [small PR to Rails](https://github.com/rails/rails/pull/31872).  We implemented the change locally and immediately saw our DLQ monitors stopped turning red.
 
-![thundering-herd-jitter](./animations/thunder-herd-jitter.gif)
+![thundering-herd-jitter](./imgs/thunder-herd-jitter-v2.gif)
 
 Jitter is explained really well by [Marc Brooker from AWS](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/), the gist is that if you have 100 people run to a doorway, the doorway might come crashing down.  If instead everyone ran at different speeds and arrived with somewhat random intervals, the doorway is still usable and the queue pressure is significantly lessened.  At least, that's how I explained it to my kids (except I told them they're still not allowed to run in the house).
