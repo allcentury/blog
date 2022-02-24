@@ -19,13 +19,13 @@ That queue is part of an autoscale policy that scales in and out based on the qu
 1. Compile evidence - Merchants are allowed to submit evidence in many formats, we have to standardize it and prepend metadata from Step 1
 1. Submit to Processor Service over HTTP
 
-The processor service is abstracted away because as a Gateway-based service, we have many payment processors we interact with and we want this to work for other clients too.  The processor service takes realtime traffic over HTTP and then submits in batches.  Every 3-5 hours, a cron task wakes up, searches for recently created dispute submission requests, batches them into a big zip file and submits them via SFTP to one of our processors.  It handles errors and successes and has an API for those various states.
+The processor service is abstracted away because as a Gateway-based service we have many payment processors we interact with.  The processor service takes realtime traffic over HTTP and then submits to the processor in batches.  Every few hours, a cron task wakes up, searches for recent submission requests, batches them into a big zip file and submits them via SFTP to one of our processors.  It handles errors and successes and has an API for those various states.
 
 The processor service is HTTP based, also with a simplified autoscale policy.
 
 ## The Problem
 
-In the job described above, sometimes we would see a number of them failed over night.  ActiveJob errors whenever an unhandled exception occurs and we have a policy in place that [DLQ's](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html) the message in those instances (with SQS we don't acknowledge it on purpose).  We then have a monitor in datadog that tracks the DLQ size and pings us when that figure is > 0.
+In the job described above, sometimes we would see a number of them had failed over night.  ActiveJob errors whenever an unhandled exception occurs and we have a policy in place that [DLQ's](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html) the message in those instances (with SQS we simply don't acknowledge it).  We then have a monitor in datadog that tracks the DLQ size and pings us when that figure is > 0.
 
 Dropping a job is not an option, money is on the line for our merchants and we take that very seriously.  That means we need systems that are reliable and that also means we need jobs that can handle transient failures with grace.  We set up autoscaling because of traffic spikes and robust retry logic based on years of reliability improvements.  Still though, we would come into the office some mornings and the DLQ would be in the hundreds with errors like `Faraday::TimeoutError`, `Faraday::ConnectionFailed`, and various other `Net::HTTP` errors.
 
@@ -45,7 +45,7 @@ end
 
 Why can't our jobs reach the processor service at certain points in the day?  In fact, we had retries for these exact errors so why didn't the retries work?  Once we double checked that jobs were in fact retrying, we realized something else was going on.
 
-When we looked at our traffic patterns, we could see a big spike of traffic right before we see the first errors roll in.  We figured it's a scaling issue and that perhaps our scale out policy was too slow but that didn't explain why the retries didn't work.  If we scaled out and retried, wouldn't this eventually succeed?
+When we looked at our traffic patterns, we could see a big spike of traffic right before the first errors roll in.  We figured it's a scaling issue and that perhaps our scale out policy was too slow but that didn't explain why the retries didn't work.  If we scaled out and retried, this should eventually succeed.
 
 ![traffic graph](./imgs/thundering-herd-traffic.png)
 
