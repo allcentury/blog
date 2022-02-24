@@ -1,6 +1,6 @@
 # Thundering Herd + Jitter
 
-At Braintree (a PayPal co.), it is no secret that we are big users of [Ruby on Rails(RoR)](https://rubyonrails.org).  We are also big users of a component of RoR called [ActiveJob](https://edgeguides.rubyonrails.org/active_job_basics.html).  ActiveJob is an API abstraction on top of existing background job frameworks such as [Sidekiq](https://sidekiq.org/), [Shoryuken](https://github.com/ruby-shoryuken/shoryuken) and [many more](https://edgeapi.rubyonrails.org/classes/ActiveJob/QueueAdapters.html). In this blog post, I'm going to share how I was able to get a small featured merged into ActiveJob that stopped a persistent issue.
+At Braintree (a PayPal co.), it is no secret that we are big users of [Ruby on Rails(RoR)](https://rubyonrails.org).  We are also big users of a component of RoR called [ActiveJob](https://edgeguides.rubyonrails.org/active_job_basics.html).  ActiveJob is an API abstraction on top of existing background job frameworks such as [Sidekiq](https://sidekiq.org/), [Shoryuken](https://github.com/ruby-shoryuken/shoryuken) and [many more](https://edgeapi.rubyonrails.org/classes/ActiveJob/QueueAdapters.html). In this blog post, I'm going to share how I was able to get a small feature merged into ActiveJob that stopped a persistent issue.
 
 ## Context
 
@@ -56,7 +56,7 @@ Enter the [Thundering herd problem](https://en.wikipedia.org/wiki/Thundering_her
 ![thundering-herd](./animations/thunder-herd.gif)
 
 
-While we had autoscale policies in place for this, our timing was terrible.  We would hammer the processor service which would eventually crashed it.  Then our jobs would go back into the queue to retry N times.  The processor service would scale out but some of our retry intervals were so long, the processor service would inevitably scale back in before the jobs retried :facepalm:.  Scale in and out policies are a tradeoff of time and money, the faster it can scale in/out the more cost effective but the tradeoff is that we can be underprovisioned for a period of time.  This was unfortunate and we could feel the architectural coupling of this entire flow.
+While we had autoscale policies in place for this, our timing was terrible.  We would hammer the processor service which would eventually crash it.  Then our jobs would go back into the queue to retry N times.  The processor service would scale out but some of our retry intervals were so long, the processor service would inevitably scale back in before the jobs retried :facepalm:.  Scale in and out policies are a tradeoff of time and money, the faster it can scale in/out the more cost effective but the tradeoff is that we can be underprovisioned for a period of time.  This was unfortunate and we could feel the architectural coupling of this entire flow.
 
 We put in place the following plans:
 
