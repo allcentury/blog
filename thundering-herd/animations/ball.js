@@ -1,203 +1,34 @@
-var c = document.getElementById("animation");
-var ctx = c.getContext("2d");
-var cH;
-var cW;
-var bgColor = "#FF6138";
-var animations = [];
-var circles = [];
+const canvas = document.getElementById("animation");
+const ctx = canvas.getContext("2d");
+const black = "#000000";
 
-var colorPicker = (function() {
-  var colors = ["#FF6138", "#FFBE53", "#2980B9", "#282741"];
-  var index = 0;
-  function next() {
-    index = index++ < colors.length-1 ? index : 0;
-    return colors[index];
-  }
-  function current() {
-    return colors[index]
-  }
-  return {
-    next: next,
-    current: current
-  }
-})();
+// Steps is the magic variable to change here.
+// When we use getPaths() to determine the shortest path
+// from the jobs to the service, we trim them down to the amount
+// of steps.  With a higher step amount, the objects
+// follow their path more closely, which yields more objects
+// arriving at Service in pseudo-random order.  When steps is a lower number
+// the reverse happens, which shows the thundering herd problem.
+//
+// We use 25 to show random arrivals and 12 for the thundering herd.
+const steps = 12;
 
-function removeAnimation(animation) {
-  var index = animations.indexOf(animation);
-  if (index > -1) animations.splice(index, 1);
+const degradeService = function() {
+  return steps <= 20
 }
 
-function calcPageFillRadius(x, y) {
-  var l = Math.max(x - 0, cW - x);
-  var h = Math.max(y - 0, cH - y);
-  return Math.sqrt(Math.pow(l, 2) + Math.pow(h, 2));
-}
-
-function addClickListeners() {
-  // document.addEventListener("touchstart", handleEvent);
-  // document.addEventListener("mousedown", handleEvent);
-};
-
-function handleEvent(e) {
-  console.log("Got event")
-    if (e.touches) {
-      e.preventDefault();
-      e = e.touches[0];
-    }
-    var currentColor = colorPicker.current();
-    var nextColor = colorPicker.next();
-    var targetR = calcPageFillRadius(e.pageX, e.pageY);
-    var rippleSize = Math.min(200, (cW * .4));
-    var minCoverDuration = 750;
-
-    var pageFill = new Circle({
-      x: e.pageX,
-      y: e.pageY,
-      r: 0,
-      fill: nextColor
-    });
-    var fillAnimation = anime({
-      targets: pageFill,
-      r: targetR,
-      duration:  Math.max(targetR / 2 , minCoverDuration ),
-      easing: "easeOutQuart",
-      complete: function(){
-        bgColor = pageFill.fill;
-        removeAnimation(fillAnimation);
-      }
-    });
-
-    var ripple = new Circle({
-      x: e.pageX,
-      y: e.pageY,
-      r: 0,
-      fill: currentColor,
-      stroke: {
-        width: 3,
-        color: currentColor
-      },
-      opacity: 1
-    });
-    var rippleAnimation = anime({
-      targets: ripple,
-      r: rippleSize,
-      opacity: 0,
-      easing: "easeOutExpo",
-      duration: 900,
-      complete: removeAnimation
-    });
-
-    var particles = [];
-    for (var i=0; i<32; i++) {
-      var particle = new Circle({
-        x: e.pageX,
-        y: e.pageY,
-        fill: currentColor,
-        r: anime.random(24, 48)
-      })
-      particles.push(particle);
-    }
-    var particlesAnimation = anime({
-      targets: particles,
-      x: function(particle){
-        return particle.x + anime.random(rippleSize, -rippleSize);
-      },
-      y: function(particle){
-        return particle.y + anime.random(rippleSize * 1.15, -rippleSize * 1.15);
-      },
-      r: 0,
-      easing: "easeOutExpo",
-      duration: anime.random(1000,1300),
-      complete: removeAnimation
-    });
-    animations.push(fillAnimation, rippleAnimation, particlesAnimation);
-}
-
-function extend(a, b){
-  for(var key in b) {
-    if(b.hasOwnProperty(key)) {
-      a[key] = b[key];
-    }
-  }
-  return a;
-}
-
-var Circle = function(opts) {
-  extend(this, opts);
-}
-
-Circle.prototype.draw = function() {
-  ctx.globalAlpha = this.opacity || 1;
-  ctx.beginPath();
-  ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
-  if (this.stroke) {
-    ctx.strokeStyle = this.stroke.color;
-    ctx.lineWidth = this.stroke.width;
-    ctx.stroke();
-  }
-  if (this.fill) {
-    ctx.fillStyle = this.fill;
-    ctx.fill();
-  }
-  ctx.closePath();
-  ctx.globalAlpha = 1;
-}
-
-
-
-var resizeCanvas = function() {
-  cW = window.innerWidth;
-  cH = window.innerHeight;
-  c.width = cW * devicePixelRatio;
-  c.height = cH * devicePixelRatio;
+const resizeCanvas = function() {
+  let cW = window.innerWidth;
+  let cH = window.innerHeight;
+  canvas.width = cW * devicePixelRatio;
+  canvas.height = cH * devicePixelRatio;
   ctx.scale(devicePixelRatio, devicePixelRatio);
 };
 
 function init() {
   resizeCanvas();
   window.addEventListener("resize", resizeCanvas);
-  addClickListeners();
-  setInterval(draw, 180) // 180 for slow
-  if (!!window.location.pathname.match(/fullcpgrid/)) {
-    startFauxClicking();
-  }
-  handleInactiveUser();
-}
-
-function handleInactiveUser() {
-  var inactive = setTimeout(function(){
-    fauxClick(cW/2, cH/2);
-  }, 2000);
-
-  function clearInactiveTimeout() {
-    clearTimeout(inactive);
-    document.removeEventListener("mousedown", clearInactiveTimeout);
-    document.removeEventListener("touchstart", clearInactiveTimeout);
-  }
-
-  document.addEventListener("mousedown", clearInactiveTimeout);
-  document.addEventListener("touchstart", clearInactiveTimeout);
-}
-
-function startFauxClicking() {
-  setTimeout(function(){
-    fauxClick(anime.random( cW * .2, cW * .8), anime.random(cH * .2, cH * .8));
-    startFauxClicking();
-  }, anime.random(200, 900));
-}
-
-function fauxClick(x, y) {
-  var fauxClick = new Event("mousedown");
-  fauxClick.pageX = x;
-  fauxClick.pageY = y;
-  document.dispatchEvent(fauxClick);
-}
-
-var container = {
-	x: 0,
-	y: 0,
-	width: 600,
-	height: 300
+  setInterval(draw, 180)
 }
 
 class Color {
@@ -268,53 +99,15 @@ class Box {
   }
 }
 
-class ExtendedCircle {
-  constructor(x, y, radius, startAngle, endAngle, counterclockwise, vx, vy) {
-    this.x = x;
-    this.y = y;
-    this.radius = radius;
-    this.startAngle = startAngle;
-    this.endAngle = endAngle;
-    this.counterclockwise = counterclockwise;
-    this.vx = vx;
-    this.vy = vy;
-  }
-
-  setCtx(c) {
-    this.ctx = c
-  }
-
-  toString() {
-    console.log(
-      x,
-      y,
-    )
-  }
-
-  draw() {
-    this.ctx.fillStyle = black;
-    this.ctx.beginPath();
-    this.ctx.arc(this.x, this.y, this.radius, this.startAngle, this.endAngle, this.counterclockwise);
-    this.ctx.fill();
-  }
-
-  move() {
-    this.x += this.vx;
-    this.y += this.vy;
-  }
-}
-
-var black = "#000000";
-
 function externalColor() {
   return new Color(147, 50, 47);
 }
 
-var externalService = new Box(450, 100, 70, 100, externalColor());
-var jobColor = new Color(300, 76, 72);
-// ctx.fillStyle = `hsl(300, 76%, 72%)`
+const externalService = new Box(450, 100, 70, 100, externalColor());
+console.log("external: ", externalService)
 
-var jobs = [
+const jobColor = new Color(300, 76, 72);
+const jobs = [
   new Box(10, 10, 30, 30, jobColor),
   new Box(10, 50, 30, 30, jobColor),
   new Box(10, 90, 30, 30, jobColor),
@@ -325,15 +118,19 @@ var jobs = [
 ]
 
 
-var grid = new PF.Grid(120, 60);
+const grid = new PF.Grid(120, 60);
+const objectDimension = 5;
 
-console.log("external: ", externalService)
+// getPath returns a set of coordinates using A*
+// we use object dimension to determine the amount of space
+// a single object should take up and adjust the paths accordingly
 function getPaths(jS, eS) {
-  var gridBackup = grid.clone();
-  var finder = new PF.AStarFinder();
-  var path = finder.findPath(jS.x / 5, jS.y / 5, eS.mid()[0] / 5, eS.mid()[1] / 5, gridBackup);
-  return path.map(p => [p[0] * 5, p[1] * 5])
+  const gridBackup = grid.clone();
+  const finder = new PF.AStarFinder();
+  const path = finder.findPath(jS.x / objectDimension, jS.y / objectDimension, eS.mid()[0] / objectDimension, eS.mid()[1] / objectDimension, gridBackup);
+  return path.map(p => [p[0] * objectDimension, p[1] * objectDimension])
 }
+
 class Request {
   constructor(paths, startBox, velocity) {
     this.paths  = paths;
@@ -343,9 +140,7 @@ class Request {
   }
 }
 
-var steps = 25;
-
-var requests = jobs.map(j => {
+const requests = jobs.map(j => {
   let paths = getPaths(j, externalService)
   let velocity = Math.ceil(paths.length / steps)
   return new Request(
@@ -357,26 +152,20 @@ var requests = jobs.map(j => {
 
 console.log(requests)
 
-
-function init2() {
-  setInterval(draw, 50) // 180 for slow
-}
-
-
-var colors = [
+const colors = [
   125,
   205,
   25,
   100,
 ]
 
-var currentColor = null;
+let currentColor = null;
 function getColor() {
   if (currentColor == null) {
     currentColor = Math.floor(Math.random() * colors.length)
     return colors[currentColor];
   } else {
-    var newColor = null;
+    let newColor = null;
     do {
       newColor = Math.floor(Math.random() * colors.length)
     } while (newColor == currentColor);
@@ -385,47 +174,18 @@ function getColor() {
   }
 }
 
-var color = getColor()
+let color = getColor()
 
-function sleep(ms) {
-  return new Promise(r => setTimeout(r, ms))
-}
-
-var loops = 0
-
+let loops = 0
 async function draw() {
-
-  var canvas = document.getElementById('animation');
-  var ctx = canvas.getContext('2d');
-
-	var animate = anime({
-		duration: Infinity,
-		update: function() {
-			// ctx.fillStyle = bgColor;
-			// ctx.fillRect(0, 0, cW, cH);
-			animations.forEach(function(anim) {
-				anim.animatables.forEach(function(animatable) {
-					animatable.target.draw();
-				});
-			});
-		}
-	});
 	loops += 1
-  if (loops % 100 == 0) {
+  if (loops % 65 == 0) {
     // reset
-    // console.log("reset color on external service")
-		// externalService.hsl = externalColor()
-    // console.log("es...", externalService)
-    //
-    // let event = new MouseEvent("mousedown", {
-    //   bubbles: true,
-    //   clientX: externalService.x,
-    //   clientY: externalService.y,
-    // })
-    // console.log(event);
-    // canvas.dispatchEvent(event)
+		externalService.hsl = externalColor()
   } else if (loops % 2 == 0) {
-    // externalService.degrade()
+    if (degradeService()) {
+      externalService.degrade()
+    }
   }
 
   externalService.draw(ctx);
@@ -436,20 +196,20 @@ async function draw() {
   for(j = 0; j < requests.length; j++) {
     let req = requests[j]
     req.startBox.draw(ctx);
-    var path = req.paths
+    let path = req.paths
 
-    var i = req.counter;
+    let i = req.counter;
     if (i < path.length) {
       ctx.fillStyle = 'hsl(' + color + ', 100%, 50%)';
       let x = path[i][0]
       let y = path[i][1]
-      ctx.fillRect(x, y, 5, 5)
+      ctx.fillRect(x, y, objectDimension, objectDimension)
       if ( i > 0) {
-        // clear previous square to make it look like it's moving
+        // redraw previous square to match background and make it look like it's moving
         ctx.fillStyle = 'white';
-        x = path[i-req.velocity][0]
-        y = path[i-req.velocity][1]
-        ctx.fillRect(x, y, 5, 5)
+        x = path[i - req.velocity][0]
+        y = path[i - req.velocity][1]
+        ctx.fillRect(x, y, objectDimension, objectDimension)
       }
     } else {
       // reset
