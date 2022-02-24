@@ -70,3 +70,5 @@ While we were using [exponential backoff](https://en.wikipedia.org/wiki/Exponent
 ![thundering-herd-jitter](./imgs/thunder-herd-jitter-v2.gif)
 
 Jitter is explained really well by [Marc Brooker from AWS](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/), the gist is that if you have 100 people run to a doorway, the doorway might come crashing down.  If instead everyone ran at different speeds and arrived with somewhat random intervals, the doorway is still usable and the queue pressure is significantly lessened.  At least, that's how I explained it to my kids (except I told them they're still not allowed to run in the house).
+
+The code for the animations can be found [here](https://github.com/allcentury/blog/tree/main/thundering-herd/animations)
