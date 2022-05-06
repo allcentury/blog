@@ -178,10 +178,10 @@ let color = getColor()
 
 let loops = 0
 async function draw() {
-	loops += 1
+  loops += 1
   if (loops % 65 == 0) {
     // reset
-		externalService.hsl = externalColor()
+    externalService.hsl = externalColor()
   } else if (loops % 2 == 0) {
     if (degradeService()) {
       externalService.degrade()
